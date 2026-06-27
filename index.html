@@ -107,6 +107,18 @@ button:focus-visible, input:focus-visible{outline:2px solid var(--sky);outline-o
 .picker-item:hover, .picker-item:active{background:var(--surface);}
 .picker-empty{padding:10px 12px;font-size:13px;color:var(--text-muted);}
 .register-link-section{margin-top:12px;}
+.info-overlay{position:fixed;inset:0;z-index:90;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;}
+.info-card{background:var(--surface);width:100%;max-width:480px;max-height:85vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border);border-bottom:none;}
+.info-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.info-header h2{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:16px;margin:0;letter-spacing:.5px;}
+.info-close{background:none;border:1px solid var(--border);color:var(--text-muted);font-size:14px;cursor:pointer;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.info-body{padding:18px;overflow-y:auto;}
+.info-section{margin-bottom:22px;}
+.info-section:last-child{margin-bottom:4px;}
+.info-section h3{font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--ball);margin:0 0 8px;}
+.info-section p{font-size:13.5px;line-height:1.55;color:var(--text);margin:0 0 8px;}
+.info-section p:last-child{margin-bottom:0;}
+.info-section .muted{color:var(--text-muted);font-size:12px;}
 
 /* ---- LOGIN (rediseño tipo app real) ---- */
 .login-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;background:var(--bg);}
@@ -153,6 +165,7 @@ button:focus-visible, input:focus-visible{outline:2px solid var(--sky);outline-o
       <p class="season-label" id="seasonLabel">Cargando...</p>
     </div>
     <div class="user-badge" id="userBadge"></div>
+    <button class="refresh-btn" onclick="toggleInfoModal()" title="Cómo funciona" aria-label="Información">ℹ️</button>
     <button class="refresh-btn" id="refreshBtn" onclick="refreshNow()" title="Actualizar" aria-label="Actualizar">⟳</button>
   </header>
 
@@ -216,6 +229,42 @@ button:focus-visible, input:focus-visible{outline:2px solid var(--sky);outline-o
   </nav>
 </div>
 
+<div class="info-overlay" id="infoOverlay" style="display:none;" onclick="if(event.target===this) toggleInfoModal()">
+  <div class="info-card">
+    <div class="info-header">
+      <h2>Cómo funciona</h2>
+      <button class="info-close" onclick="toggleInfoModal()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="info-body">
+      <div class="info-section">
+        <h3>🏆 Tus puntos</h3>
+        <p>Todo el mundo empieza con <strong>1200 puntos</strong>. No significan nada por sí solos, es solo el punto de partida.</p>
+        <p>Cada partido que juegas, tus puntos suben si ganas y bajan si pierdes. Lo importante es que <strong>cuánto subes o bajas depende del rival</strong>: si ganas a una pareja con más puntos que la tuya, subes bastante; si ganas a una pareja más floja, subes poco. Al revés si pierdes.</p>
+        <p class="muted">Así, con el tiempo, el ranking refleja el nivel real de cada uno dentro del grupo.</p>
+      </div>
+      <div class="info-section">
+        <h3>🎾 Cómo se organizan los partidos</h3>
+        <p>En la pestaña Partidos puedes <strong>crear un partido</strong> con fecha y hora, apuntar a quien ya tengas, e invitar al resto por WhatsApp si os falta gente. Cuando estén los 4, cualquiera puede registrar el resultado.</p>
+        <p>También puedes registrar un resultado directamente, sin organizarlo antes, si ya habéis jugado.</p>
+      </div>
+      <div class="info-section">
+        <h3>💶 La caja y la comida</h3>
+        <p>Cada partido que se pierde, la pareja perdedora "paga" <strong>2€</strong>, que se suman automáticamente al bote de la pestaña Caja. Ese dinero se va acumulando durante toda la temporada.</p>
+        <p>Cuando os apetezca, ese bote se usa para pagar una comida del grupo. El admin marca "Comida realizada" para vaciar la caja después.</p>
+      </div>
+      <div class="info-section">
+        <h3>📅 Temporadas</h3>
+        <p>Cada verano se cierra la temporada: todos vuelven a 1200 puntos y la caja se vacía, para que el pique empiece de cero. El campeón de cada temporada queda guardado para siempre en el <strong>Salón de la Fama</strong>.</p>
+      </div>
+      <div class="info-section">
+        <h3>👤 Roles</h3>
+        <p><strong>Jugadores:</strong> pueden organizar partidos, unirse a partidos abiertos, y registrar resultados.</p>
+        <p><strong>Admin:</strong> además de lo anterior, añade jugadores nuevos, genera el enlace de registro, gestiona la caja, edita o elimina partidos, y cierra la temporada.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -250,6 +299,7 @@ let selfRegisterOpen = false;
 let createFormOpen = false;
 let createSlots = {s1:'', s2:'', s3:'', s4:''};
 let createDateTimeValue = '';
+let editingMatchId = null;
 let loginRole = 'player';
 let loginSelectedPlayerId = '';
 
@@ -382,6 +432,12 @@ function logout(){
   currentUser = null;
   clearSession();
   updateAuthUI();
+}
+
+function toggleInfoModal(){
+  const overlay = document.getElementById('infoOverlay');
+  if(!overlay) return;
+  overlay.style.display = (overlay.style.display === 'none') ? 'flex' : 'none';
 }
 
 function updateAuthUI(){
@@ -920,7 +976,7 @@ function pickSuggestion(formPrefix, key, playerId){
 function toggleCreateForm(){
   if(!currentUser) return;
   createFormOpen = !createFormOpen;
-  if(createFormOpen){ createSlots = {s1:'', s2:'', s3:'', s4:''}; createDateTimeValue=''; }
+  if(createFormOpen){ editingMatchId = null; createSlots = {s1:'', s2:'', s3:'', s4:''}; createDateTimeValue=''; }
   renderCreateForm();
 }
 
@@ -936,9 +992,11 @@ function renderCreateForm(){
   const wrap = document.getElementById('createFormWrap');
   if(!wrap) return;
   if(!createFormOpen || !currentUser){ wrap.innerHTML=''; return; }
-  if(currentUser.role==='player') createSlots.s1 = currentUser.id;
+  if(currentUser.role==='player' && !editingMatchId) createSlots.s1 = currentUser.id;
+  const btnLabel = editingMatchId ? 'Guardar cambios' : 'Crear partido';
   wrap.innerHTML = `
     <div class="create-form">
+      ${editingMatchId ? '<div class="team-label" style="margin-bottom:10px;color:var(--ball);">✏️ Editando partido</div>' : ''}
       <label class="team-label">Fecha y hora</label>
       <input type="datetime-local" id="createDateTime" value="${createDateTimeValue}" oninput="createDateTimeValue=this.value">
       <label class="team-label" style="display:block;margin-top:14px;">Pareja A</label>
@@ -947,8 +1005,39 @@ function renderCreateForm(){
       <label class="team-label" style="display:block;margin-top:14px;">Pareja B (rivales)</label>
       <div class="slot-row">${buildSlotSelectOrFixed(3)}</div>
       <div class="slot-row">${buildSlotSelectOrFixed(4)}</div>
-      <button class="primary" style="width:100%;margin-top:16px;" onclick="submitCreateMatch()">Crear partido</button>
+      <button class="primary" style="width:100%;margin-top:16px;" onclick="submitCreateMatch()">${btnLabel}</button>
+      ${editingMatchId ? '<button class="btn-small" style="width:100%;margin-top:8px;justify-content:center;" onclick="cancelEditMatch()">Cancelar</button>' : ''}
     </div>`;
+}
+
+function startEditMatch(matchId){
+  if(!currentUser || currentUser.role!=='admin') return;
+  const m = state.openMatches.find(om=>om.id===matchId);
+  if(!m) return;
+  editingMatchId = matchId;
+  createSlots = {s1:m.slots[0]||'', s2:m.slots[1]||'', s3:m.slots[2]||'', s4:m.slots[3]||''};
+  createDateTimeValue = m.date;
+  createFormOpen = true;
+  renderCreateForm();
+  const target = document.getElementById('createFormWrap');
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+function cancelEditMatch(){
+  editingMatchId = null;
+  createFormOpen = false;
+  createSlots = {s1:'',s2:'',s3:'',s4:''};
+  createDateTimeValue = '';
+  renderCreateForm();
+}
+
+async function deleteOpenMatch(matchId){
+  if(!currentUser || currentUser.role!=='admin') return;
+  if(!confirm('¿Eliminar este partido organizado? No se puede deshacer.')) return;
+  state.openMatches = state.openMatches.filter(m=>m.id!==matchId);
+  if(editingMatchId===matchId) cancelEditMatch();
+  renderUpcoming();
+  await saveState();
 }
 
 async function submitCreateMatch(){
@@ -957,6 +1046,20 @@ async function submitCreateMatch(){
   const dt = dtInput ? dtInput.value : '';
   if(!dt){ alert('Elige fecha y hora para el partido.'); return; }
   const slots = [createSlots.s1||null, createSlots.s2||null, createSlots.s3||null, createSlots.s4||null];
+
+  if(editingMatchId){
+    const m = state.openMatches.find(om=>om.id===editingMatchId);
+    if(m){ m.date = dt; m.slots = slots; }
+    editingMatchId = null;
+    createFormOpen = false;
+    createSlots = {s1:'',s2:'',s3:'',s4:''};
+    createDateTimeValue = '';
+    renderCreateForm();
+    renderUpcoming();
+    await saveState();
+    return;
+  }
+
   const match = { id: uid('om'), date: dt, slots, createdBy: currentUser.role==='player'?currentUser.id:null, createdAt: new Date().toISOString() };
   state.openMatches.push(match);
   createFormOpen = false;
@@ -992,6 +1095,10 @@ function renderUpcoming(){
         actions += `<button class="btn-small accent" onclick="joinOpenMatch('${m.id}')">Unirme</button>`;
       }
       actions += `<button class="btn-small" onclick="showInviteFor('${m.id}')">Invitar</button>`;
+    }
+    if(currentUser && currentUser.role==='admin'){
+      actions += `<button class="btn-small" onclick="startEditMatch('${m.id}')">✏️ Editar</button>`;
+      actions += `<button class="btn-small" style="color:var(--loss);border-color:var(--loss);" onclick="deleteOpenMatch('${m.id}')">🗑️ Eliminar</button>`;
     }
     return `<div class="upcoming-card">
       <div class="upcoming-date">📅 ${fmtDateTime(m.date)}</div>
@@ -1159,6 +1266,9 @@ function renderMatchHistory(){
     const aClass = m.winner==='A' ? 'win':'lose';
     const bClass = m.winner==='B' ? 'win':'lose';
     const losingNames = m.winner==='A' ? bNames : aNames;
+    const deleteBtn = (currentUser && currentUser.role==='admin')
+      ? `<button class="btn-small" style="margin-top:8px;width:100%;justify-content:center;color:var(--loss);border-color:var(--loss);" onclick="deleteMatch('${m.id}')">🗑️ Eliminar resultado</button>`
+      : '';
     return `<div class="match-card">
       <div class="match-date">${fmtDate(m.date)}</div>
       <div class="match-teams"><span class="${aClass}">${aNames}</span> &nbsp;vs&nbsp; <span class="${bClass}">${bNames}</span></div>
@@ -1166,8 +1276,39 @@ function renderMatchHistory(){
         <span>A: ${m.deltaA>0?'+':''}${m.deltaA} · B: ${m.deltaB>0?'+':''}${m.deltaB}</span>
         <span>💶 +2€ (${losingNames})</span>
       </div>
+      ${deleteBtn}
     </div>`;
   }).join('');
+}
+
+async function deleteMatch(matchId){
+  if(!currentUser || currentUser.role!=='admin') return;
+  const m = state.matches.find(mm=>mm.id===matchId);
+  if(!m) return;
+  if(!confirm('¿Eliminar este resultado? Se revertirán los puntos de los 4 jugadores y los 2€ de la caja. No se puede deshacer.')) return;
+
+  m.teamA.forEach(pRef=>{
+    const p = state.players.find(pl=>pl.id===pRef.id);
+    if(p){
+      p.rating = clamp(p.rating - m.deltaA, 100, 3000);
+      p.matchesPlayed = Math.max(0, p.matchesPlayed-1);
+      if(m.winner==='A') p.wins = Math.max(0, p.wins-1); else p.losses = Math.max(0, p.losses-1);
+      p.lastDelta = null;
+    }
+  });
+  m.teamB.forEach(pRef=>{
+    const p = state.players.find(pl=>pl.id===pRef.id);
+    if(p){
+      p.rating = clamp(p.rating - m.deltaB, 100, 3000);
+      p.matchesPlayed = Math.max(0, p.matchesPlayed-1);
+      if(m.winner==='B') p.wins = Math.max(0, p.wins-1); else p.losses = Math.max(0, p.losses-1);
+      p.lastDelta = null;
+    }
+  });
+  state.pot = Math.max(0, state.pot - 2);
+  state.matches = state.matches.filter(mm=>mm.id!==matchId);
+  renderAll();
+  await saveState();
 }
 
 // ---------- CAJA ----------

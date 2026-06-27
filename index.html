@@ -92,6 +92,7 @@ button:focus-visible, input:focus-visible{outline:2px solid var(--sky);outline-o
 .slot-row .fixed-slot{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text-muted);font-size:14px;}
 .upcoming-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
 .upcoming-date{font-family:'Space Mono',monospace;font-size:12px;color:var(--ball);}
+.expiry-label{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:4px;}
 .slots-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
 .slot-chip{font-size:12px;padding:5px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);}
 .slot-chip.empty{color:var(--text-muted);border-style:dashed;}
@@ -286,6 +287,7 @@ const STATE_DOC = db.collection('padelApp').doc('estado');
 const SESSION_KEY = 'padelSession';
 
 const K = 32;
+const MATCH_EXPIRY_MS = 90 * 60 * 1000; // 90 minutos
 let state = null;
 let activeTab = 'ranking';
 let matchSelection = {a1:'',a2:'',b1:'',b2:''};
@@ -419,6 +421,8 @@ async function init(){
 
   setupNav();
   setupRealtimeSync();
+  await purgeExpiredMatches();
+  setupExpiryWatcher();
   updateAuthUI();
 
   if(currentUser){
@@ -972,6 +976,40 @@ function pickSuggestion(formPrefix, key, playerId){
   else { renderCreateForm(); }
 }
 
+// ---------- CIERRE AUTOMÁTICO DE PARTIDOS SIN COMPLETAR (90 min) ----------
+function isMatchExpired(m){
+  if(!m.createdAt) return false;
+  if(m.slots.every(Boolean)) return false; // ya está completo, no expira
+  const createdMs = new Date(m.createdAt).getTime();
+  if(isNaN(createdMs)) return false;
+  return (Date.now() - createdMs) > MATCH_EXPIRY_MS;
+}
+async function purgeExpiredMatches(){
+  if(!state || !state.openMatches) return;
+  const before = state.openMatches.length;
+  state.openMatches = state.openMatches.filter(m=>!isMatchExpired(m));
+  if(state.openMatches.length !== before){
+    if(currentUser) renderUpcoming();
+    await saveState();
+  }
+}
+function setupExpiryWatcher(){
+  setInterval(()=>{
+    purgeExpiredMatches();
+    if(currentUser) renderUpcoming();
+  }, 30000);
+}
+function formatCountdown(createdAtIso){
+  const createdMs = new Date(createdAtIso).getTime();
+  if(isNaN(createdMs)) return null;
+  const remainingMs = (createdMs + MATCH_EXPIRY_MS) - Date.now();
+  if(remainingMs <= 0) return null;
+  const totalMin = Math.ceil(remainingMs / 60000);
+  const h = Math.floor(totalMin/60);
+  const m = totalMin % 60;
+  return h > 0 ? `${h}h ${m}min` : `${m} min`;
+}
+
 // ---------- PRÓXIMOS PARTIDOS (organizar + invitar) ----------
 function toggleCreateForm(){
   if(!currentUser) return;
@@ -1100,9 +1138,15 @@ function renderUpcoming(){
       actions += `<button class="btn-small" onclick="startEditMatch('${m.id}')">✏️ Editar</button>`;
       actions += `<button class="btn-small" style="color:var(--loss);border-color:var(--loss);" onclick="deleteOpenMatch('${m.id}')">🗑️ Eliminar</button>`;
     }
+    let expiryHtml = '';
+    if(!isFull){
+      const remaining = formatCountdown(m.createdAt);
+      if(remaining) expiryHtml = `<div class="expiry-label">⏳ Se cierra solo en ${remaining} si no se completa</div>`;
+    }
     return `<div class="upcoming-card">
       <div class="upcoming-date">📅 ${fmtDateTime(m.date)}</div>
       <div class="slots-wrap">${slotsHtml}</div>
+      ${expiryHtml}
       <div class="upcoming-actions">${actions}</div>
       <div id="invite-${m.id}"></div>
     </div>`;

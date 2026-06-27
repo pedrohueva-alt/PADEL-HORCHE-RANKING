@@ -1,0 +1,1251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ranking Pádel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#15231D; --surface:#1E2F27; --surface-2:#24392F; --border:#2C463B;
+  --text:#F2F6F0; --text-muted:#8FA89A; --ball:#D7FF3F; --sky:#4FA8C9; --loss:#FF6B5E;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;}
+.app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+.topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--bg);border-bottom:1px solid var(--border);}
+.topbar .ball{font-size:28px;filter:drop-shadow(0 0 6px rgba(215,255,63,.5));}
+.topbar h1{font-family:'Oswald',sans-serif;font-size:18px;margin:0;letter-spacing:.5px;text-transform:uppercase;}
+.season-label{margin:2px 0 0;font-size:12px;color:var(--text-muted);font-family:'Space Mono',monospace;}
+.user-badge{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap;}
+.user-badge button{background:none;border:none;color:var(--sky);font-size:11px;cursor:pointer;padding:0;text-decoration:underline;}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--text-muted);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;}
+.refresh-btn.spinning{animation:spin .6s linear;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+main{flex:1;padding:16px;padding-bottom:90px;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.empty-state{text-align:center;color:var(--text-muted);padding:40px 16px;font-size:14px;line-height:1.5;}
+.section-title{font-family:'Oswald',sans-serif;font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:24px 0 10px;}
+.section-title:first-child{margin-top:0;}
+.me-summary{display:flex;align-items:center;gap:14px;background:var(--surface-2);border:1px solid var(--ball);border-radius:14px;padding:14px;margin-bottom:14px;}
+.me-summary-pos{font-family:'Oswald',sans-serif;font-weight:700;font-size:22px;color:var(--ball);width:34px;text-align:center;flex-shrink:0;}
+.me-summary-info{flex:1;min-width:0;}
+.me-summary-name{font-weight:600;font-size:14px;}
+.me-summary-record{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);}
+.me-summary-points{font-family:'Space Mono',monospace;font-weight:700;font-size:24px;text-shadow:0 0 10px rgba(215,255,63,.3);}
+.rank-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.rank-row.me{border-color:var(--ball);}
+.rank-num{font-family:'Oswald',sans-serif;font-weight:700;font-size:18px;width:24px;text-align:center;color:var(--text-muted);}
+.rank-row.r1 .rank-num{color:var(--ball);}
+.rank-row.r2 .rank-num{color:#C9D6CF;}
+.rank-row.r3 .rank-num{color:#D9A066;}
+.rank-name{flex:1;min-width:0;}
+.rank-name .name{font-weight:600;font-size:14px;}
+.rank-name .you-tag{color:var(--ball);font-family:'Space Mono',monospace;font-size:10px;margin-left:4px;}
+.rank-name .record{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);}
+.rank-points{text-align:right;}
+.rank-points .num{font-family:'Space Mono',monospace;font-weight:700;font-size:20px;text-shadow:0 0 10px rgba(215,255,63,.25);}
+.rank-points .delta{font-family:'Space Mono',monospace;font-size:11px;}
+.delta.up{color:var(--sky);}
+.delta.down{color:var(--loss);}
+.add-player-row{display:flex;gap:8px;margin-top:16px;}
+input[type=text], input[type=datetime-local]{flex:1;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;width:100%;}
+button.primary{background:var(--ball);color:#16210D;border:none;font-family:'Oswald',sans-serif;font-weight:600;letter-spacing:.3px;padding:10px 16px;border-radius:8px;cursor:pointer;text-transform:uppercase;font-size:13px;}
+button.primary:disabled{opacity:.4;cursor:not-allowed;}
+button.danger{background:none;border:1px solid var(--loss);color:var(--loss);padding:10px 16px;border-radius:8px;cursor:pointer;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:13px;}
+.match-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:20px;}
+.team-block{margin-bottom:12px;}
+.team-label{font-family:'Oswald',sans-serif;font-size:12px;text-transform:uppercase;color:var(--text-muted);letter-spacing:.5px;}
+.vs-divider{text-align:center;font-family:'Oswald',sans-serif;color:var(--text-muted);font-size:12px;margin:8px 0;letter-spacing:2px;}
+.winner-toggle{display:flex;gap:8px;margin:12px 0;}
+.winner-btn{flex:1;padding:12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-muted);font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;font-size:12px;cursor:pointer;text-align:center;}
+.winner-btn.selected{background:var(--ball);color:#16210D;border-color:var(--ball);}
+.match-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.match-date{font-family:'Space Mono',monospace;font-size:10px;color:var(--text-muted);}
+.match-teams{font-size:13px;margin:4px 0;}
+.match-teams .win{color:var(--sky);font-weight:600;}
+.match-teams .lose{color:var(--text-muted);}
+.match-meta{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:11px;margin-top:6px;color:var(--text-muted);gap:8px;flex-wrap:wrap;}
+.pot-display{text-align:center;padding:30px 0;}
+.pot-display .amount{font-family:'Space Mono',monospace;font-weight:700;font-size:44px;text-shadow:0 0 16px rgba(215,255,63,.3);}
+.pot-display .label{font-family:'Oswald',sans-serif;text-transform:uppercase;color:var(--text-muted);font-size:12px;letter-spacing:1px;margin-top:4px;}
+.contrib-row{display:flex;justify-content:space-between;font-size:13px;padding:8px 0;border-bottom:1px solid var(--border);gap:8px;}
+.contrib-row:last-child{border-bottom:none;}
+.season-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
+.season-card .name{font-family:'Oswald',sans-serif;font-size:20px;text-transform:uppercase;}
+.season-card .meta{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:4px;}
+.hof-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.hof-card .champ{font-weight:700;font-size:14px;}
+.hof-card .meta{font-family:'Space Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:4px;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--surface);border-top:1px solid var(--border);display:flex;justify-content:space-around;z-index:50;}
+.nav-btn{flex:1;background:none;border:none;color:var(--text-muted);padding:10px 0 8px;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:'Inter',sans-serif;font-size:10.5px;cursor:pointer;}
+.nav-btn .icon{font-size:19px;}
+.nav-btn.active{color:var(--ball);}
+button:focus-visible, input:focus-visible{outline:2px solid var(--sky);outline-offset:2px;}
+.create-toggle{width:100%;margin-bottom:16px;}
+.create-form{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;}
+.slot-row{margin-top:8px;}
+.slot-row .fixed-slot{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;color:var(--text-muted);font-size:14px;}
+.upcoming-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;}
+.upcoming-date{font-family:'Space Mono',monospace;font-size:12px;color:var(--ball);}
+.slots-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
+.slot-chip{font-size:12px;padding:5px 10px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);}
+.slot-chip.empty{color:var(--text-muted);border-style:dashed;}
+.upcoming-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.btn-small{font-family:'Inter',sans-serif;font-size:12px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px;}
+.btn-small.accent{background:var(--ball);color:#16210D;border-color:var(--ball);font-weight:600;}
+.share-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.share-row input{flex:1;min-width:120px;}
+.player-picker{position:relative;margin-top:6px;}
+.picker-suggestions{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;max-height:180px;overflow-y:auto;z-index:30;box-shadow:0 8px 20px rgba(0,0,0,.35);display:none;}
+.picker-item{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border);}
+.picker-item:last-child{border-bottom:none;}
+.picker-item:hover, .picker-item:active{background:var(--surface);}
+.picker-empty{padding:10px 12px;font-size:13px;color:var(--text-muted);}
+.register-link-section{margin-top:12px;}
+
+/* ---- LOGIN (rediseño tipo app real) ---- */
+.login-overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;overflow-y:auto;background:var(--bg);}
+.login-bg-court{position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(circle at 50% -10%, rgba(215,255,63,.10), transparent 55%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 46px);
+}
+.login-card{position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:32px 26px;width:100%;max-width:380px;text-align:center;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.login-brand{margin-bottom:18px;}
+.login-ball{font-size:36px;filter:drop-shadow(0 0 10px rgba(215,255,63,.4));animation:bounceIn .5s ease;}
+@keyframes bounceIn{0%{transform:scale(.6);opacity:0;}60%{transform:scale(1.08);opacity:1;}100%{transform:scale(1);}}
+.login-wordmark{font-family:'Oswald',sans-serif;font-weight:700;font-size:26px;letter-spacing:1px;line-height:1.05;margin:8px 0 2px;text-transform:uppercase;}
+.login-wordmark span{display:block;color:var(--ball);font-size:.68em;letter-spacing:5px;}
+.login-tagline{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin:0;}
+.login-step-title{font-family:'Oswald',sans-serif;text-transform:uppercase;margin:4px 0;font-size:19px;}
+.login-step-sub{color:var(--text-muted);font-size:13px;margin:0 0 16px;line-height:1.45;}
+.role-tabs{display:flex;background:var(--surface-2);border-radius:10px;padding:4px;margin-bottom:18px;}
+.role-tab{flex:1;padding:10px;border:none;background:none;color:var(--text-muted);font-family:'Oswald',sans-serif;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:.5px;border-radius:7px;cursor:pointer;}
+.role-tab.active{background:var(--ball);color:#16210D;}
+.login-player-picker input{margin-bottom:0;}
+.pin-label{display:block;font-family:'Oswald',sans-serif;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin:14px 0 8px;text-align:left;}
+.pin-boxes{display:flex;gap:9px;justify-content:center;}
+.pin-box{width:44px;height:54px;text-align:center;font-size:22px;font-family:'Space Mono',monospace;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text);}
+.pin-box:focus{border-color:var(--ball);outline:none;box-shadow:0 0 0 3px rgba(215,255,63,.15);}
+.login-submit{width:100%;margin-top:18px;padding:13px;font-size:13.5px;}
+.login-hint{color:var(--text-muted);font-size:12px;margin:2px 0 4px;text-align:left;line-height:1.4;}
+.login-error{color:var(--loss);font-size:12px;margin-top:12px;min-height:14px;}
+.invite-banner{background:var(--surface-2);border:1px solid var(--ball);border-radius:12px;padding:13px;margin-bottom:16px;text-align:left;}
+.invite-banner .title{font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;color:var(--ball);margin-bottom:4px;}
+.invite-banner .desc{font-size:13px;color:var(--text-muted);line-height:1.4;}
+.self-register-toggle{color:var(--sky);font-size:13px;text-decoration:underline;cursor:pointer;display:inline-block;margin-top:12px;}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay"></div>
+
+<div class="app" id="app-root" style="display:none;">
+  <header class="topbar">
+    <span class="ball">🎾</span>
+    <div style="flex:1;min-width:0;">
+      <h1>Ranking Pádel</h1>
+      <p class="season-label" id="seasonLabel">Cargando...</p>
+    </div>
+    <div class="user-badge" id="userBadge"></div>
+    <button class="refresh-btn" id="refreshBtn" onclick="refreshNow()" title="Actualizar" aria-label="Actualizar">⟳</button>
+  </header>
+
+  <main>
+    <section class="tab-panel active" id="tab-ranking">
+      <div class="section-title">Clasificación</div>
+      <div id="rankingList"></div>
+      <div class="add-player-row" id="addPlayerRow" style="display:none;">
+        <input type="text" id="newPlayerName" placeholder="Nombre del jugador" onkeydown="if(event.key==='Enter') addPlayer()">
+        <button class="primary" onclick="addPlayer()">Añadir</button>
+      </div>
+      <div class="register-link-section" id="registerLinkSection" style="display:none;">
+        <button class="btn-small" onclick="toggleRegisterLink()">🔗 Enlace de registro para el grupo</button>
+        <div id="registerLinkBox"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-partidos">
+      <div class="section-title">Próximos partidos</div>
+      <button class="primary create-toggle" onclick="toggleCreateForm()">+ Crear partido</button>
+      <div id="createFormWrap"></div>
+      <div id="upcomingList"></div>
+
+      <div class="section-title">Registrar resultado</div>
+      <div id="matchFormWrap"></div>
+      <div class="section-title">Historial</div>
+      <div id="matchHistory"></div>
+    </section>
+
+    <section class="tab-panel" id="tab-caja">
+      <div class="pot-display">
+        <div class="amount" id="potAmount">0 €</div>
+        <div class="label">Bote para la comida de fin de temporada</div>
+      </div>
+      <button class="danger" id="potResetBtn" style="width:100%;margin-bottom:20px;display:none;" onclick="resetPot()">🍽️ Marcar comida realizada</button>
+      <div class="section-title">Quién ha pagado</div>
+      <div id="contribList"></div>
+    </section>
+
+    <section class="tab-panel" id="tab-temporada">
+      <div class="section-title">Temporada actual</div>
+      <div class="season-card">
+        <div class="name" id="currentSeasonName">—</div>
+        <div class="meta" id="currentSeasonStart"></div>
+      </div>
+      <div id="seasonAdminBlock" style="display:none;margin-bottom:20px;">
+        <label class="team-label" style="display:block;margin-bottom:6px;">Nombre de la próxima temporada</label>
+        <input type="text" id="newSeasonName" oninput="this.dataset.touched='1'">
+        <button class="danger" style="width:100%;margin-top:10px;" onclick="closeSeason()">Cerrar temporada y empezar nueva</button>
+      </div>
+      <div class="section-title">Salón de la fama</div>
+      <div id="hofList"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="ranking"><span class="icon">🏆</span><span>Ranking</span></button>
+    <button class="nav-btn" data-tab="partidos"><span class="icon">🎾</span><span>Partidos</span></button>
+    <button class="nav-btn" data-tab="caja"><span class="icon">💶</span><span>Caja</span></button>
+    <button class="nav-btn" data-tab="temporada"><span class="icon">📅</span><span>Temporada</span></button>
+  </nav>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+// ====================================================================
+// CONFIGURA AQUÍ TU PROYECTO DE FIREBASE (gratis en console.firebase.google.com)
+// Pega el objeto de configuración que te da Firebase al crear tu app web.
+const firebaseConfig = {
+  apiKey: "AIzaSyBcVtFNRvT8x9Y48ulkSCFcDcjutkThJIA",
+  authDomain: "padel-horche.firebaseapp.com",
+  projectId: "padel-horche",
+  storageBucket: "padel-horche.firebasestorage.app",
+  messagingSenderId: "624538399626",
+  appId: "1:624538399626:web:88017d30d0763193de4e73"
+};
+// ====================================================================
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const STATE_DOC = db.collection('padelApp').doc('estado');
+const SESSION_KEY = 'padelSession';
+
+const K = 32;
+let state = null;
+let activeTab = 'ranking';
+let matchSelection = {a1:'',a2:'',b1:'',b2:''};
+let matchWinner = null;
+let isSaving = false;
+let currentUser = null; // {role:'admin'} or {role:'player', id}
+let pendingJoinMatchId = null;
+let pendingGeneralRegister = false;
+let resultSourceMatchId = null;
+let selfRegisterOpen = false;
+let createFormOpen = false;
+let createSlots = {s1:'', s2:'', s3:'', s4:''};
+let createDateTimeValue = '';
+let loginRole = 'player';
+let loginSelectedPlayerId = '';
+
+function escapeHtml(str){ return String(str).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function clamp(n,min,max){ return Math.max(min, Math.min(max,n)); }
+function fmtDate(iso){ return new Date(iso).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtDateTime(dtStr){
+  const d = new Date(dtStr);
+  if(isNaN(d.getTime())) return dtStr;
+  return d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}) + ' · ' + d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+function uid(prefix){ return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function defaultState(){
+  return {
+    seasonName: 'Temporada ' + new Date().getFullYear(),
+    seasonStart: new Date().toISOString(),
+    players: [],
+    matches: [],
+    openMatches: [],
+    pot: 0,
+    history: [],
+    adminPin: null
+  };
+}
+
+async function loadState(){
+  try{
+    const snap = await STATE_DOC.get();
+    if(snap.exists) return snap.data();
+  }catch(e){ console.error('Error leyendo Firestore', e); }
+  return null;
+}
+
+async function saveState(){
+  isSaving = true;
+  try{
+    await STATE_DOC.set(state);
+  }catch(e){
+    console.error('Error guardando', e);
+    alert('No se ha podido guardar. Revisa tu conexión e inténtalo otra vez.');
+  } finally {
+    isSaving = false;
+  }
+}
+
+function setupRealtimeSync(){
+  STATE_DOC.onSnapshot(snap=>{
+    if(isSaving || !snap.exists) return;
+    state = snap.data();
+    if(!state.openMatches) state.openMatches = [];
+    if(currentUser) renderAll();
+  }, err=>{ console.error('Error de sincronización', err); });
+}
+
+async function refreshNow(){
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  const fresh = await loadState();
+  if(fresh) state = fresh;
+  if(currentUser) renderAll(); else renderLoginScreen();
+  setTimeout(()=>btn.classList.remove('spinning'), 600);
+}
+
+// ---------- SESIÓN (localStorage) + enlaces de invitación/registro (hash) ----------
+function saveSession(session){ try{ localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }catch(e){} }
+function loadSession(){ try{ const r=localStorage.getItem(SESSION_KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+function clearSession(){ try{ localStorage.removeItem(SESSION_KEY); }catch(e){} }
+
+function parseHash(){
+  try{
+    const raw = window.location.hash.replace(/^#/, '');
+    if(!raw) return {};
+    const out = {};
+    raw.split('&').forEach(pair=>{
+      const i = pair.indexOf('=');
+      if(i<0) return;
+      out[pair.slice(0,i)] = pair.slice(i+1);
+    });
+    return out;
+  }catch(e){ return {}; }
+}
+function writeHash(obj){
+  try{
+    const parts = Object.keys(obj).filter(k=>obj[k]!=null && obj[k]!=='').map(k=>k+'='+obj[k]);
+    const hashStr = parts.length ? '#'+parts.join('&') : '';
+    history.replaceState(null, '', window.location.pathname + hashStr);
+  }catch(e){}
+}
+function getPendingJoinId(){ try{ const h=parseHash(); return h.j?decodeURIComponent(h.j):null; }catch(e){ return null; } }
+function clearPendingJoinHash(){ const h=parseHash(); delete h.j; writeHash(h); }
+function getGeneralRegisterFlag(){ try{ return parseHash().r==='1'; }catch(e){ return false; } }
+function clearGeneralRegisterHash(){ const h=parseHash(); delete h.r; writeHash(h); }
+function buildJoinLink(matchId){ return window.location.origin + window.location.pathname + '#j=' + encodeURIComponent(matchId); }
+function buildRegisterLink(){ return window.location.origin + window.location.pathname + '#r=1'; }
+
+async function init(){
+  pendingJoinMatchId = getPendingJoinId();
+  pendingGeneralRegister = getGeneralRegisterFlag();
+
+  let loaded = await loadState();
+  if(!loaded){ state = defaultState(); await saveState(); }
+  else {
+    state = loaded;
+    if(state.adminPin===undefined) state.adminPin=null;
+    if(!state.openMatches) state.openMatches=[];
+  }
+
+  const sess = loadSession();
+  if(sess){
+    if(sess.role==='admin' && state.adminPin){ currentUser = {role:'admin'}; }
+    else if(sess.role==='player'){
+      const p = state.players.find(pl=>pl.id===sess.id);
+      if(p && p.pin) currentUser = {role:'player', id:p.id};
+    }
+  }
+
+  setupNav();
+  setupRealtimeSync();
+  updateAuthUI();
+
+  if(currentUser){
+    if(pendingGeneralRegister){ pendingGeneralRegister=false; clearGeneralRegisterHash(); }
+    if(currentUser.role==='player' && pendingJoinMatchId){ await attemptJoinFlow(); }
+    else if(pendingJoinMatchId){ pendingJoinMatchId=null; clearPendingJoinHash(); }
+  }
+}
+
+function logout(){
+  currentUser = null;
+  clearSession();
+  updateAuthUI();
+}
+
+function updateAuthUI(){
+  const overlay = document.getElementById('loginOverlay');
+  const app = document.getElementById('app-root');
+  if(currentUser){
+    overlay.style.display = 'none';
+    app.style.display = '';
+    applyRoleVisibility();
+    renderAll();
+  } else {
+    app.style.display = 'none';
+    overlay.style.display = 'flex';
+    renderLoginScreen();
+  }
+}
+
+function applyRoleVisibility(){
+  const isAdmin = currentUser && currentUser.role==='admin';
+  const addPlayerRow = document.getElementById('addPlayerRow');
+  if(addPlayerRow) addPlayerRow.style.display = isAdmin ? 'flex' : 'none';
+  const registerLinkSection = document.getElementById('registerLinkSection');
+  if(registerLinkSection) registerLinkSection.style.display = isAdmin ? 'block' : 'none';
+  const potResetBtn = document.getElementById('potResetBtn');
+  if(potResetBtn) potResetBtn.style.display = isAdmin ? 'block' : 'none';
+  const seasonAdminBlock = document.getElementById('seasonAdminBlock');
+  if(seasonAdminBlock) seasonAdminBlock.style.display = isAdmin ? 'block' : 'none';
+  renderTopbarUser();
+}
+
+function renderTopbarUser(){
+  const el = document.getElementById('userBadge');
+  if(!currentUser){ el.innerHTML=''; return; }
+  let label = 'Admin';
+  if(currentUser.role==='player'){
+    const p = state.players.find(pl=>pl.id===currentUser.id);
+    label = p ? p.name : '—';
+  }
+  el.innerHTML = `<span>${escapeHtml(label)}</span><button onclick="logout()">Salir</button>`;
+}
+
+// ---------- ENLACE DE REGISTRO GENERAL ----------
+function toggleRegisterLink(){
+  const box = document.getElementById('registerLinkBox');
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  const link = buildRegisterLink();
+  const waText = encodeURIComponent('¡Apúntate al ranking de pádel del grupo! Regístrate aquí: ' + link);
+  box.innerHTML = `<div class="share-row">
+    <input type="text" readonly value="${link}" onclick="this.select()">
+    <button class="btn-small" onclick="copyRegisterLink(this)">Copiar</button>
+    <a class="btn-small accent" href="https://api.whatsapp.com/send?text=${waText}" target="_blank" rel="noopener">WhatsApp</a>
+  </div>`;
+}
+async function copyRegisterLink(btn){
+  const link = buildRegisterLink();
+  try{
+    await navigator.clipboard.writeText(link);
+    const old = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(()=>{ btn.textContent = old; }, 1500);
+  }catch(e){
+    alert('No se ha podido copiar automáticamente. Mantén pulsado el enlace de arriba para copiarlo a mano.');
+  }
+}
+
+// ---------- PIN BOXES (componente reutilizable) ----------
+function pinBoxesHtml(groupId){
+  let boxes = '';
+  for(let i=0;i<4;i++){
+    boxes += `<input type="tel" inputmode="numeric" maxlength="1" class="pin-box" data-group="${groupId}" data-idx="${i}" oninput="onPinBoxInput(event,'${groupId}')" onkeydown="onPinBoxKeydown(event,'${groupId}')">`;
+  }
+  return `<div class="pin-boxes" id="pinboxes-${groupId}">${boxes}</div>`;
+}
+function onPinBoxInput(e, groupId){
+  const val = e.target.value.replace(/\D/g,'');
+  e.target.value = val.slice(0,1);
+  if(val){
+    const idx = parseInt(e.target.dataset.idx,10);
+    const next = document.querySelector(`.pin-box[data-group="${groupId}"][data-idx="${idx+1}"]`);
+    if(next) next.focus();
+  }
+}
+function onPinBoxKeydown(e, groupId){
+  if(e.key==='Backspace' && !e.target.value){
+    const idx = parseInt(e.target.dataset.idx,10);
+    const prev = document.querySelector(`.pin-box[data-group="${groupId}"][data-idx="${idx-1}"]`);
+    if(prev) prev.focus();
+  }
+}
+function getPinValue(groupId){
+  let val='';
+  for(let i=0;i<4;i++){
+    const el = document.querySelector(`.pin-box[data-group="${groupId}"][data-idx="${i}"]`);
+    val += el ? el.value : '';
+  }
+  return val;
+}
+function focusFirstPinBox(groupId){
+  const el = document.querySelector(`.pin-box[data-group="${groupId}"][data-idx="0"]`);
+  if(el) el.focus();
+}
+
+// ---------- LOGIN SCREEN ----------
+function loginShellHtml(inner){
+  return `
+    <div class="login-bg-court"></div>
+    <div class="login-card">
+      <div class="login-brand">
+        <div class="login-ball">🎾</div>
+        <h1 class="login-wordmark">RANKING<span>PÁDEL</span></h1>
+        <p class="login-tagline">EL RANKING DEL GRUPO</p>
+      </div>
+      ${inner}
+      <div class="login-error" id="loginError"></div>
+    </div>`;
+}
+
+function renderInviteBannerHtml(){
+  const pendingMatch = pendingJoinMatchId ? (state.openMatches||[]).find(m=>m.id===pendingJoinMatchId) : null;
+  if(pendingJoinMatchId && pendingMatch){
+    return `<div class="invite-banner"><div class="title">📨 Invitación a un partido</div><div class="desc">Partido del ${fmtDateTime(pendingMatch.date)}. Inicia sesión o regístrate para unirte.</div></div>`;
+  }
+  if(pendingJoinMatchId && !pendingMatch){
+    return `<div class="invite-banner"><div class="title">📨 Invitación</div><div class="desc">Este enlace ya no es válido (el partido se completó o ya no existe). Puedes iniciar sesión igualmente.</div></div>`;
+  }
+  if(pendingGeneralRegister){
+    return `<div class="invite-banner"><div class="title">🎾 Únete al grupo</div><div class="desc">Crea tu perfil para entrar al ranking de pádel.</div></div>`;
+  }
+  return '';
+}
+
+function renderLoginScreen(){
+  selfRegisterOpen = false;
+  loginSelectedPlayerId = '';
+  loginRole = 'player';
+  const overlay = document.getElementById('loginOverlay');
+
+  if(!state.adminPin){
+    overlay.innerHTML = loginShellHtml(`
+      <h2 class="login-step-title">Configura el admin</h2>
+      <p class="login-step-sub">Eres el primero en entrar. Crea el PIN de administrador: lo necesitarás para añadir jugadores y gestionar la caja.</p>
+      <label class="pin-label">Nuevo PIN</label>
+      ${pinBoxesHtml('admin-setup-new')}
+      <label class="pin-label">Confirma el PIN</label>
+      ${pinBoxesHtml('admin-setup-confirm')}
+      <button class="primary login-submit" onclick="setupAdminPin()">Crear PIN de administrador</button>
+    `);
+    focusFirstPinBox('admin-setup-new');
+    return;
+  }
+
+  overlay.innerHTML = loginShellHtml(`
+    ${renderInviteBannerHtml()}
+    <div class="role-tabs" id="roleTabs">
+      <button class="role-tab active" data-role="player" onclick="switchRoleTab('player')">Jugador</button>
+      <button class="role-tab" data-role="admin" onclick="switchRoleTab('admin')">Admin</button>
+    </div>
+    <div id="loginBody"></div>
+    <button class="primary login-submit" id="loginSubmitBtn" onclick="loginAttempt()">Entrar</button>
+  `);
+  renderLoginBody();
+}
+
+function switchRoleTab(role){
+  loginRole = role;
+  loginSelectedPlayerId = '';
+  selfRegisterOpen = false;
+  document.querySelectorAll('.role-tab').forEach(b=>b.classList.toggle('active', b.dataset.role===role));
+  const errEl = document.getElementById('loginError');
+  if(errEl) errEl.textContent='';
+  renderLoginBody();
+}
+
+function renderLoginBody(){
+  const body = document.getElementById('loginBody');
+  if(!body) return;
+  const submitBtn = document.getElementById('loginSubmitBtn');
+  if(submitBtn) submitBtn.style.display = (loginRole==='player' && selfRegisterOpen) ? 'none' : '';
+
+  if(loginRole==='admin'){
+    body.innerHTML = `<label class="pin-label">PIN de administrador</label>${pinBoxesHtml('admin-login')}`;
+    focusFirstPinBox('admin-login');
+    return;
+  }
+
+  if(selfRegisterOpen){
+    body.innerHTML = renderSelfRegisterHtml();
+    focusFirstPinBox('selfreg-new');
+    return;
+  }
+
+  const allowSelfRegister = !!pendingJoinMatchId || pendingGeneralRegister;
+  body.innerHTML = `
+    <div class="player-picker login-player-picker">
+      <input type="text" id="loginPlayerSearch" placeholder="Escribe tu nombre..." autocomplete="off"
+        oninput="onLoginPlayerType(this.value)" onfocus="onLoginPlayerFocus()" onblur="onLoginPlayerBlur()">
+      <div class="picker-suggestions" id="login-player-sugg"></div>
+    </div>
+    <div id="loginPlayerPinArea"></div>
+    ${allowSelfRegister ? '<span class="self-register-toggle" onclick="toggleSelfRegister()">¿No apareces en la lista? Regístrate aquí</span>' : ''}`;
+}
+
+function onLoginPlayerType(text){
+  if(loginSelectedPlayerId){
+    const p = state.players.find(pl=>pl.id===loginSelectedPlayerId);
+    if(!p || p.name!==text) loginSelectedPlayerId='';
+  }
+  renderLoginPlayerSuggestions(text);
+  const pinArea = document.getElementById('loginPlayerPinArea');
+  if(pinArea) pinArea.innerHTML='';
+}
+function onLoginPlayerFocus(){
+  const input = document.getElementById('loginPlayerSearch');
+  renderLoginPlayerSuggestions(input?input.value:'');
+}
+function onLoginPlayerBlur(){
+  setTimeout(()=>{
+    const s = document.getElementById('login-player-sugg');
+    if(s) s.style.display='none';
+  }, 120);
+}
+function renderLoginPlayerSuggestions(query){
+  const sugg = document.getElementById('login-player-sugg');
+  if(!sugg) return;
+  const q = (query||'').trim().toLowerCase();
+  let pool = state.players;
+  if(q) pool = pool.filter(p=>p.name.toLowerCase().includes(q));
+  pool = pool.slice(0,6);
+  if(pool.length===0){
+    sugg.innerHTML = '<div class="picker-empty">Sin coincidencias</div>';
+    sugg.style.display='block';
+    return;
+  }
+  sugg.innerHTML = pool.map(p=>`<div class="picker-item" onmousedown="event.preventDefault(); pickLoginPlayer('${p.id}')">${escapeHtml(p.name)}</div>`).join('');
+  sugg.style.display='block';
+}
+function pickLoginPlayer(playerId){
+  loginSelectedPlayerId = playerId;
+  const p = state.players.find(pl=>pl.id===playerId);
+  const input = document.getElementById('loginPlayerSearch');
+  if(input) input.value = p?p.name:'';
+  const sugg = document.getElementById('login-player-sugg');
+  if(sugg){ sugg.innerHTML=''; sugg.style.display='none'; }
+  const pinArea = document.getElementById('loginPlayerPinArea');
+  if(!pinArea) return;
+  if(p && !p.pin){
+    pinArea.innerHTML = `
+      <p class="login-hint">Es tu primera vez: elige el PIN que usarás siempre a partir de ahora.</p>
+      <label class="pin-label">Crea tu PIN</label>
+      ${pinBoxesHtml('player-new')}
+      <label class="pin-label">Confirma tu PIN</label>
+      ${pinBoxesHtml('player-confirm')}`;
+    focusFirstPinBox('player-new');
+  } else {
+    pinArea.innerHTML = `<label class="pin-label">Tu PIN</label>${pinBoxesHtml('player-login')}`;
+    focusFirstPinBox('player-login');
+  }
+}
+
+function toggleSelfRegister(){
+  selfRegisterOpen = !selfRegisterOpen;
+  renderLoginBody();
+}
+function renderSelfRegisterHtml(){
+  return `
+    <p class="login-hint">Crea tu perfil para entrar al ranking.</p>
+    <input type="text" id="selfRegName" placeholder="Tu nombre" autocomplete="off">
+    <label class="pin-label">Crea tu PIN</label>
+    ${pinBoxesHtml('selfreg-new')}
+    <label class="pin-label">Confirma tu PIN</label>
+    ${pinBoxesHtml('selfreg-confirm')}
+    <button class="primary login-submit" onclick="selfRegisterAndJoin()">Registrarme</button>
+    <span class="self-register-toggle" onclick="toggleSelfRegister()">← Volver a iniciar sesión</span>`;
+}
+
+async function setupAdminPin(){
+  const err = document.getElementById('loginError');
+  const pin = getPinValue('admin-setup-new');
+  const confirmPin = getPinValue('admin-setup-confirm');
+  if(pin.length<4){ err.textContent='Completa los 4 dígitos del PIN.'; return; }
+  if(pin!==confirmPin){ err.textContent='Los PIN no coinciden.'; return; }
+  state.adminPin = pin;
+  await saveState();
+  err.textContent='';
+  renderLoginScreen();
+}
+
+function clearPendingLinkFlags(){
+  if(pendingGeneralRegister){ pendingGeneralRegister=false; clearGeneralRegisterHash(); }
+}
+
+async function loginAttempt(){
+  const err = document.getElementById('loginError');
+
+  if(loginRole==='admin'){
+    const pin = getPinValue('admin-login');
+    if(pin.length<4 || pin !== state.adminPin){ err.textContent='PIN incorrecto.'; return; }
+    currentUser = {role:'admin'};
+    saveSession(currentUser);
+    err.textContent='';
+    clearPendingLinkFlags();
+    if(pendingJoinMatchId){ pendingJoinMatchId=null; clearPendingJoinHash(); }
+    updateAuthUI();
+    return;
+  }
+
+  if(!loginSelectedPlayerId){ err.textContent='Busca y elige tu nombre de la lista.'; return; }
+  const player = state.players.find(p=>p.id===loginSelectedPlayerId);
+  if(!player){ err.textContent='Jugador no encontrado.'; return; }
+
+  if(!player.pin){
+    const pin = getPinValue('player-new');
+    const confirmPin = getPinValue('player-confirm');
+    if(pin.length<4){ err.textContent='Completa los 4 dígitos del PIN.'; return; }
+    if(pin!==confirmPin){ err.textContent='Los PIN no coinciden.'; return; }
+    player.pin = pin;
+    await saveState();
+    currentUser = {role:'player', id:player.id};
+    saveSession(currentUser);
+    err.textContent='';
+    clearPendingLinkFlags();
+    updateAuthUI();
+    if(pendingJoinMatchId) await attemptJoinFlow();
+    return;
+  }
+
+  const pin = getPinValue('player-login');
+  if(pin.length<4 || pin !== player.pin){ err.textContent='PIN incorrecto.'; return; }
+  currentUser = {role:'player', id:player.id};
+  saveSession(currentUser);
+  err.textContent='';
+  clearPendingLinkFlags();
+  updateAuthUI();
+  if(pendingJoinMatchId) await attemptJoinFlow();
+}
+
+async function selfRegisterAndJoin(){
+  if(!pendingJoinMatchId && !pendingGeneralRegister) return;
+  const err = document.getElementById('loginError');
+  const name = document.getElementById('selfRegName').value.trim();
+  const pin = getPinValue('selfreg-new');
+  const confirmPin = getPinValue('selfreg-confirm');
+  if(!name){ err.textContent='Escribe tu nombre.'; return; }
+  if(state.players.some(p=>p.name.toLowerCase()===name.toLowerCase())){
+    err.textContent='Ya hay un jugador con ese nombre. Si eres tú, vuelve atrás e inicia sesión con tu PIN.';
+    return;
+  }
+  if(pin.length<4){ err.textContent='Completa los 4 dígitos del PIN.'; return; }
+  if(pin!==confirmPin){ err.textContent='Los PIN no coinciden.'; return; }
+  const newPlayer = {id: uid('p'), name, rating:1200, wins:0, losses:0, matchesPlayed:0, lastDelta:null, pin};
+  state.players.push(newPlayer);
+  await saveState();
+  currentUser = {role:'player', id:newPlayer.id};
+  saveSession(currentUser);
+  err.textContent='';
+  selfRegisterOpen = false;
+  clearPendingLinkFlags();
+  updateAuthUI();
+  if(pendingJoinMatchId) await attemptJoinFlow();
+}
+
+async function attemptJoinFlow(){
+  if(!pendingJoinMatchId || !currentUser || currentUser.role!=='player'){
+    pendingJoinMatchId = null; clearPendingJoinHash();
+    return;
+  }
+  const matchId = pendingJoinMatchId;
+  pendingJoinMatchId = null;
+  clearPendingJoinHash();
+  goToTab('partidos');
+  const m = state.openMatches.find(om=>om.id===matchId);
+  if(!m){ alert('Este partido ya no existe o ha sido completado.'); renderAll(); return; }
+  if(m.slots.includes(currentUser.id)){ renderAll(); return; }
+  const freeIdx = m.slots.findIndex(s=>!s);
+  if(freeIdx===-1){ alert('Este partido ya está completo, pero puedes apuntarte a otro desde la pestaña Partidos.'); renderAll(); return; }
+  m.slots[freeIdx] = currentUser.id;
+  renderAll();
+  await saveState();
+  alert('¡Te has unido al partido del ' + fmtDateTime(m.date) + '!');
+}
+
+function goToTab(tab){
+  activeTab = tab;
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active', p.id==='tab-'+tab));
+}
+
+// ---------- NAV ----------
+function setupNav(){
+  document.querySelectorAll('.nav-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> goToTab(btn.dataset.tab));
+  });
+}
+
+function renderAll(){
+  document.getElementById('seasonLabel').textContent = state.seasonName;
+  renderTopbarUser();
+  renderRanking();
+  renderMatchTab();
+  renderUpcoming();
+  renderCreateForm();
+  renderCaja();
+  renderTemporada();
+}
+
+// ---------- RANKING ----------
+function renderRanking(){
+  const root = document.getElementById('rankingList');
+  if(state.players.length===0){
+    root.innerHTML = '<div class="empty-state">Aún no hay jugadores apuntados.</div>';
+    return;
+  }
+  const sorted = [...state.players].sort((a,b)=>b.rating-a.rating);
+
+  let summaryHtml = '';
+  if(currentUser && currentUser.role==='player'){
+    const idx = sorted.findIndex(p=>p.id===currentUser.id);
+    if(idx>=0){
+      const me = sorted[idx];
+      summaryHtml = `<div class="me-summary">
+        <div class="me-summary-pos">#${idx+1}</div>
+        <div class="me-summary-info">
+          <div class="me-summary-name">${escapeHtml(me.name)}</div>
+          <div class="me-summary-record">${me.wins}V - ${me.losses}D · ${me.matchesPlayed} PJ</div>
+        </div>
+        <div class="me-summary-points">${me.rating}</div>
+      </div>`;
+    }
+  }
+
+  root.innerHTML = summaryHtml + sorted.map((p,i)=>{
+    const isMe = currentUser && currentUser.role==='player' && currentUser.id===p.id;
+    const rankClass = (i===0?'r1':i===1?'r2':i===2?'r3':'') + (isMe?' me':'');
+    let deltaHtml = '';
+    if(p.lastDelta){
+      const cls = p.lastDelta>0?'up':'down';
+      const sign = p.lastDelta>0?'+':'';
+      deltaHtml = `<div class="delta ${cls}">${sign}${p.lastDelta}</div>`;
+    }
+    return `<div class="rank-row ${rankClass}">
+      <div class="rank-num">${i+1}</div>
+      <div class="rank-name">
+        <div class="name">${i===0?'🏆 ':''}${escapeHtml(p.name)}${isMe?'<span class="you-tag">· TÚ</span>':''}</div>
+        <div class="record">${p.wins}V - ${p.losses}D · ${p.matchesPlayed} PJ</div>
+      </div>
+      <div class="rank-points">
+        <div class="num">${p.rating}</div>
+        ${deltaHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addPlayer(){
+  if(!currentUser || currentUser.role!=='admin') return;
+  const input = document.getElementById('newPlayerName');
+  const name = input.value.trim();
+  if(!name) return;
+  state.players.push({id: uid('p'), name, rating:1200, wins:0, losses:0, matchesPlayed:0, lastDelta:null, pin:null});
+  input.value='';
+  renderRanking();
+  renderMatchTab();
+  renderCreateForm();
+  await saveState();
+}
+
+// ---------- BUSCADOR DE JUGADORES (match/crear partido) ----------
+function getSelectionObj(formPrefix){ return formPrefix==='match' ? matchSelection : createSlots; }
+function getGroupKeys(formPrefix){ return formPrefix==='match' ? ['a1','a2','b1','b2'] : ['s1','s2','s3','s4']; }
+function selectedName(formPrefix, key){
+  const id = getSelectionObj(formPrefix)[key];
+  if(!id) return '';
+  const p = state.players.find(pl=>pl.id===id);
+  return p ? p.name : '';
+}
+
+function pickerHtml(formPrefix, key){
+  const val = selectedName(formPrefix, key);
+  return `<div class="player-picker">
+    <input type="text" class="picker-input" id="${formPrefix}-input-${key}" placeholder="Busca un nombre..." autocomplete="off"
+      value="${escapeHtml(val)}"
+      oninput="onPickerType('${formPrefix}','${key}', this.value)"
+      onfocus="onPickerFocus('${formPrefix}','${key}')"
+      onblur="onPickerBlur('${formPrefix}','${key}')">
+    <div class="picker-suggestions" id="${formPrefix}-sugg-${key}"></div>
+  </div>`;
+}
+
+function renderPickerSuggestions(formPrefix, key, query){
+  const obj = getSelectionObj(formPrefix);
+  const groupKeys = getGroupKeys(formPrefix);
+  const chosenElsewhere = groupKeys.filter(k=>k!==key).map(k=>obj[k]).filter(Boolean);
+  let pool = state.players.filter(p=>!chosenElsewhere.includes(p.id));
+  const q = (query||'').trim().toLowerCase();
+  if(q) pool = pool.filter(p=>p.name.toLowerCase().includes(q));
+  pool = pool.slice(0,6);
+  const sugg = document.getElementById(formPrefix+'-sugg-'+key);
+  if(!sugg) return;
+  if(pool.length===0){
+    sugg.innerHTML = '<div class="picker-empty">Sin coincidencias</div>';
+    sugg.style.display = 'block';
+    return;
+  }
+  sugg.innerHTML = pool.map(p=>`<div class="picker-item" onmousedown="event.preventDefault(); pickSuggestion('${formPrefix}','${key}','${p.id}')">${escapeHtml(p.name)}</div>`).join('');
+  sugg.style.display = 'block';
+}
+
+function onPickerType(formPrefix, key, text){
+  const obj = getSelectionObj(formPrefix);
+  const currentId = obj[key];
+  if(currentId){
+    const p = state.players.find(pl=>pl.id===currentId);
+    if(!p || p.name !== text){ obj[key] = ''; }
+  }
+  renderPickerSuggestions(formPrefix, key, text);
+  if(formPrefix==='match') validateMatchForm();
+}
+function onPickerFocus(formPrefix, key){
+  const input = document.getElementById(formPrefix+'-input-'+key);
+  renderPickerSuggestions(formPrefix, key, input ? input.value : '');
+}
+function onPickerBlur(formPrefix, key){
+  setTimeout(()=>{
+    const sugg = document.getElementById(formPrefix+'-sugg-'+key);
+    if(sugg) sugg.style.display='none';
+  }, 120);
+}
+function pickSuggestion(formPrefix, key, playerId){
+  const obj = getSelectionObj(formPrefix);
+  obj[key] = playerId;
+  if(formPrefix==='match'){ renderMatchTab(); }
+  else { renderCreateForm(); }
+}
+
+// ---------- PRÓXIMOS PARTIDOS (organizar + invitar) ----------
+function toggleCreateForm(){
+  if(!currentUser) return;
+  createFormOpen = !createFormOpen;
+  if(createFormOpen){ createSlots = {s1:'', s2:'', s3:'', s4:''}; createDateTimeValue=''; }
+  renderCreateForm();
+}
+
+function buildSlotSelectOrFixed(n){
+  if(currentUser && currentUser.role==='player' && n===1){
+    const me = state.players.find(p=>p.id===currentUser.id);
+    return `<div class="fixed-slot">${escapeHtml(me?me.name:'Tú')} (tú)</div>`;
+  }
+  return pickerHtml('create', 's'+n);
+}
+
+function renderCreateForm(){
+  const wrap = document.getElementById('createFormWrap');
+  if(!wrap) return;
+  if(!createFormOpen || !currentUser){ wrap.innerHTML=''; return; }
+  if(currentUser.role==='player') createSlots.s1 = currentUser.id;
+  wrap.innerHTML = `
+    <div class="create-form">
+      <label class="team-label">Fecha y hora</label>
+      <input type="datetime-local" id="createDateTime" value="${createDateTimeValue}" oninput="createDateTimeValue=this.value">
+      <label class="team-label" style="display:block;margin-top:14px;">Pareja A</label>
+      <div class="slot-row">${buildSlotSelectOrFixed(1)}</div>
+      <div class="slot-row">${buildSlotSelectOrFixed(2)}</div>
+      <label class="team-label" style="display:block;margin-top:14px;">Pareja B (rivales)</label>
+      <div class="slot-row">${buildSlotSelectOrFixed(3)}</div>
+      <div class="slot-row">${buildSlotSelectOrFixed(4)}</div>
+      <button class="primary" style="width:100%;margin-top:16px;" onclick="submitCreateMatch()">Crear partido</button>
+    </div>`;
+}
+
+async function submitCreateMatch(){
+  if(!currentUser) return;
+  const dtInput = document.getElementById('createDateTime');
+  const dt = dtInput ? dtInput.value : '';
+  if(!dt){ alert('Elige fecha y hora para el partido.'); return; }
+  const slots = [createSlots.s1||null, createSlots.s2||null, createSlots.s3||null, createSlots.s4||null];
+  const match = { id: uid('om'), date: dt, slots, createdBy: currentUser.role==='player'?currentUser.id:null, createdAt: new Date().toISOString() };
+  state.openMatches.push(match);
+  createFormOpen = false;
+  createSlots = {s1:'',s2:'',s3:'',s4:''};
+  createDateTimeValue = '';
+  renderCreateForm();
+  renderUpcoming();
+  await saveState();
+  showInviteFor(match.id);
+}
+
+function renderUpcoming(){
+  const wrap = document.getElementById('upcomingList');
+  if(!wrap) return;
+  const list = [...(state.openMatches||[])].sort((a,b)=> new Date(a.date) - new Date(b.date));
+  if(list.length===0){
+    wrap.innerHTML = '<div class="empty-state">No hay partidos organizados todavía.</div>';
+    return;
+  }
+  wrap.innerHTML = list.map(m=>{
+    const isFull = m.slots.every(Boolean);
+    const slotsHtml = m.slots.map(id=>{
+      if(!id) return `<span class="slot-chip empty">Libre</span>`;
+      const p = state.players.find(pl=>pl.id===id);
+      return `<span class="slot-chip">${escapeHtml(p?p.name:'—')}</span>`;
+    }).join('');
+    const alreadyIn = currentUser && currentUser.role==='player' && m.slots.includes(currentUser.id);
+    let actions = '';
+    if(isFull){
+      actions += `<button class="btn-small accent" onclick="startResultFromOpenMatch('${m.id}')">Registrar resultado</button>`;
+    } else {
+      if(currentUser && currentUser.role==='player' && !alreadyIn){
+        actions += `<button class="btn-small accent" onclick="joinOpenMatch('${m.id}')">Unirme</button>`;
+      }
+      actions += `<button class="btn-small" onclick="showInviteFor('${m.id}')">Invitar</button>`;
+    }
+    return `<div class="upcoming-card">
+      <div class="upcoming-date">📅 ${fmtDateTime(m.date)}</div>
+      <div class="slots-wrap">${slotsHtml}</div>
+      <div class="upcoming-actions">${actions}</div>
+      <div id="invite-${m.id}"></div>
+    </div>`;
+  }).join('');
+}
+
+function showInviteFor(matchId){
+  const el = document.getElementById('invite-'+matchId);
+  if(!el) return;
+  const link = buildJoinLink(matchId);
+  const waText = encodeURIComponent('¡Necesitamos gente para el partido de pádel! Apúntate aquí: ' + link);
+  el.innerHTML = `
+    <div class="share-row">
+      <input type="text" readonly value="${link}" onclick="this.select()">
+      <button class="btn-small" onclick="copyInviteLink('${matchId}', this)">Copiar</button>
+      <a class="btn-small accent" href="https://api.whatsapp.com/send?text=${waText}" target="_blank" rel="noopener">WhatsApp</a>
+    </div>`;
+}
+
+async function copyInviteLink(matchId, btn){
+  const link = buildJoinLink(matchId);
+  try{
+    await navigator.clipboard.writeText(link);
+    const old = btn.textContent;
+    btn.textContent = '¡Copiado!';
+    setTimeout(()=>{ btn.textContent = old; }, 1500);
+  }catch(e){
+    alert('No se ha podido copiar automáticamente. Mantén pulsado el enlace de arriba para copiarlo a mano.');
+  }
+}
+
+async function joinOpenMatch(matchId){
+  if(!currentUser || currentUser.role!=='player'){ alert('Inicia sesión como jugador para unirte.'); return; }
+  const m = state.openMatches.find(om=>om.id===matchId);
+  if(!m){ alert('Este partido ya no existe.'); renderUpcoming(); return; }
+  if(m.slots.includes(currentUser.id)){ alert('Ya estás en este partido.'); return; }
+  const freeIdx = m.slots.findIndex(s=>!s);
+  if(freeIdx===-1){ alert('Este partido ya está completo.'); renderUpcoming(); return; }
+  m.slots[freeIdx] = currentUser.id;
+  renderUpcoming();
+  await saveState();
+}
+
+function startResultFromOpenMatch(matchId){
+  const m = state.openMatches.find(om=>om.id===matchId);
+  if(!m) return;
+  matchSelection = {a1:m.slots[0], a2:m.slots[1], b1:m.slots[2], b2:m.slots[3]};
+  matchWinner = null;
+  resultSourceMatchId = matchId;
+  goToTab('partidos');
+  renderMatchTab();
+  const target = document.getElementById('matchFormWrap');
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ---------- REGISTRAR RESULTADO ----------
+function validateMatchForm(){
+  const allChosen = matchSelection.a1 && matchSelection.a2 && matchSelection.b1 && matchSelection.b2;
+  const btn = document.getElementById('submitMatchBtn');
+  if(btn) btn.disabled = !(allChosen && matchWinner);
+}
+
+function renderMatchTab(){
+  const formWrap = document.getElementById('matchFormWrap');
+  if(!formWrap) return;
+  if(state.players.length < 4){
+    formWrap.innerHTML = '<div class="empty-state">Necesitas al menos 4 jugadores apuntados para registrar un partido.</div>';
+  } else {
+    formWrap.innerHTML = `
+      <div class="match-form">
+        <div class="team-block">
+          <label class="team-label">Pareja A</label>
+          ${pickerHtml('match','a1')}
+          ${pickerHtml('match','a2')}
+        </div>
+        <div class="vs-divider">VS</div>
+        <div class="team-block">
+          <label class="team-label">Pareja B</label>
+          ${pickerHtml('match','b1')}
+          ${pickerHtml('match','b2')}
+        </div>
+        <div class="winner-toggle">
+          <div class="winner-btn" id="winA" onclick="setWinner('A')">Gana Pareja A</div>
+          <div class="winner-btn" id="winB" onclick="setWinner('B')">Gana Pareja B</div>
+        </div>
+        <button class="primary" id="submitMatchBtn" style="width:100%;" onclick="submitMatch()" disabled>Registrar partido</button>
+      </div>`;
+    if(matchWinner){
+      const el = document.getElementById('win'+matchWinner);
+      if(el) el.classList.add('selected');
+    }
+    validateMatchForm();
+  }
+  renderMatchHistory();
+}
+
+function setWinner(team){
+  matchWinner = team;
+  document.getElementById('winA').classList.toggle('selected', team==='A');
+  document.getElementById('winB').classList.toggle('selected', team==='B');
+  validateMatchForm();
+}
+
+function eloDelta(ratingA, ratingB, scoreA){
+  const expectedA = 1/(1+Math.pow(10,(ratingB-ratingA)/400));
+  return Math.round(K*(scoreA-expectedA));
+}
+
+async function submitMatch(){
+  if(!currentUser) return;
+  const ids = [matchSelection.a1, matchSelection.a2, matchSelection.b1, matchSelection.b2];
+  if(ids.some(id=>!id) || !matchWinner) return;
+  const byId = id => state.players.find(p=>p.id===id);
+  const a1=byId(matchSelection.a1), a2=byId(matchSelection.a2), b1=byId(matchSelection.b1), b2=byId(matchSelection.b2);
+  if(!a1||!a2||!b1||!b2) return;
+  const ratingA = (a1.rating + a2.rating)/2;
+  const ratingB = (b1.rating + b2.rating)/2;
+  const scoreA = matchWinner==='A' ? 1 : 0;
+  const deltaA = eloDelta(ratingA, ratingB, scoreA);
+  const deltaB = -deltaA;
+  [a1,a2].forEach(p=>{ p.rating = clamp(p.rating+deltaA,100,3000); p.matchesPlayed++; p.lastDelta=deltaA; if(matchWinner==='A') p.wins++; else p.losses++; });
+  [b1,b2].forEach(p=>{ p.rating = clamp(p.rating+deltaB,100,3000); p.matchesPlayed++; p.lastDelta=deltaB; if(matchWinner==='B') p.wins++; else p.losses++; });
+  state.matches.push({
+    id: uid('m'),
+    date: new Date().toISOString(),
+    teamA: [{id:a1.id,name:a1.name},{id:a2.id,name:a2.name}],
+    teamB: [{id:b1.id,name:b1.name},{id:b2.id,name:b2.name}],
+    winner: matchWinner,
+    deltaA, deltaB
+  });
+  state.pot += 2;
+
+  if(resultSourceMatchId){
+    const om = state.openMatches.find(m=>m.id===resultSourceMatchId);
+    if(om){
+      const omSet = om.slots.filter(Boolean).slice().sort().join(',');
+      const chosenSet = [a1.id,a2.id,b1.id,b2.id].slice().sort().join(',');
+      if(omSet===chosenSet){
+        state.openMatches = state.openMatches.filter(m=>m.id!==resultSourceMatchId);
+      }
+    }
+    resultSourceMatchId = null;
+  }
+
+  matchSelection = {a1:'',a2:'',b1:'',b2:''};
+  matchWinner = null;
+  renderAll();
+  await saveState();
+}
+
+function renderMatchHistory(){
+  const root = document.getElementById('matchHistory');
+  if(state.matches.length===0){
+    root.innerHTML = '<div class="empty-state">Todavía no se ha jugado ningún partido esta temporada.</div>';
+    return;
+  }
+  const list = [...state.matches].reverse();
+  root.innerHTML = list.map(m=>{
+    const aNames = m.teamA.map(p=>escapeHtml(p.name)).join(' / ');
+    const bNames = m.teamB.map(p=>escapeHtml(p.name)).join(' / ');
+    const aClass = m.winner==='A' ? 'win':'lose';
+    const bClass = m.winner==='B' ? 'win':'lose';
+    const losingNames = m.winner==='A' ? bNames : aNames;
+    return `<div class="match-card">
+      <div class="match-date">${fmtDate(m.date)}</div>
+      <div class="match-teams"><span class="${aClass}">${aNames}</span> &nbsp;vs&nbsp; <span class="${bClass}">${bNames}</span></div>
+      <div class="match-meta">
+        <span>A: ${m.deltaA>0?'+':''}${m.deltaA} · B: ${m.deltaB>0?'+':''}${m.deltaB}</span>
+        <span>💶 +2€ (${losingNames})</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- CAJA ----------
+function renderCaja(){
+  document.getElementById('potAmount').textContent = state.pot + ' €';
+  const root = document.getElementById('contribList');
+  const losing = [...state.matches].reverse().map(m=>{
+    const losers = m.winner==='A' ? m.teamB : m.teamA;
+    return {date:m.date, names: losers.map(p=>p.name).join(' / ')};
+  });
+  if(losing.length===0){
+    root.innerHTML = '<div class="empty-state">La caja está vacía... de momento 💶</div>';
+  } else {
+    root.innerHTML = losing.map(l=>`<div class="contrib-row"><span>${fmtDate(l.date)} · ${escapeHtml(l.names)}</span><span>2 €</span></div>`).join('');
+  }
+}
+
+async function resetPot(){
+  if(!currentUser || currentUser.role!=='admin') return;
+  if(!confirm('¿Marcar la comida como realizada? Esto pondrá la caja a 0€.')) return;
+  state.pot = 0;
+  renderCaja();
+  await saveState();
+}
+
+// ---------- TEMPORADA ----------
+function renderTemporada(){
+  document.getElementById('currentSeasonName').textContent = state.seasonName;
+  document.getElementById('currentSeasonStart').textContent = 'Empezada el ' + fmtDate(state.seasonStart);
+  const nextYear = new Date().getFullYear()+1;
+  const input = document.getElementById('newSeasonName');
+  if(input && !input.dataset.touched) input.value = 'Temporada ' + nextYear;
+
+  const root = document.getElementById('hofList');
+  if(state.history.length===0){
+    root.innerHTML = '<div class="empty-state">Aquí aparecerán las temporadas pasadas y sus campeones 🏆</div>';
+  } else {
+    const list = [...state.history].reverse();
+    root.innerHTML = list.map(h=>{
+      const champ = h.standings[0];
+      return `<div class="hof-card">
+        <div class="champ">🏆 ${champ?escapeHtml(champ.name):'—'} <span style="color:var(--text-muted);font-weight:400;">— ${escapeHtml(h.seasonName)}</span></div>
+        <div class="meta">${champ?champ.rating:'-'} pts · Bote final: ${h.potFinal} € · ${h.matchesPlayed} partidos</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+async function closeSeason(){
+  if(!currentUser || currentUser.role!=='admin') return;
+  const input = document.getElementById('newSeasonName');
+  const newName = input.value.trim() || ('Temporada ' + (new Date().getFullYear()+1));
+  if(state.players.length===0){
+    alert('Añade jugadores antes de cerrar la temporada.');
+    return;
+  }
+  if(!confirm('¿Cerrar "'+state.seasonName+'" y empezar "'+newName+'"? Esto reinicia los puntos de todos a 1200 y vacía la caja. No se puede deshacer.')) return;
+  const standings = [...state.players].sort((a,b)=>b.rating-a.rating).map(p=>({name:p.name, rating:p.rating, wins:p.wins, losses:p.losses}));
+  state.history.push({
+    seasonName: state.seasonName,
+    start: state.seasonStart,
+    end: new Date().toISOString(),
+    standings,
+    potFinal: state.pot,
+    matchesPlayed: state.matches.length
+  });
+  state.players.forEach(p=>{ p.rating=1200; p.wins=0; p.losses=0; p.matchesPlayed=0; p.lastDelta=null; });
+  state.matches = [];
+  state.openMatches = [];
+  state.pot = 0;
+  state.seasonName = newName;
+  state.seasonStart = new Date().toISOString();
+  input.dataset.touched = '';
+  renderAll();
+  await saveState();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
